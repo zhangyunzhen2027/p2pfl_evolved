@@ -47,6 +47,8 @@ class General:
     """Disable Ray for local testing."""
     RESOURCE_MONITOR_PERIOD: int = 10
     """Period (seconds) to send resource monitor information."""
+    CHECKPOINT_DIR: str = "checkpoints"
+    """Directory to save checkpoints."""
 
 
 @dataclass

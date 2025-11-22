@@ -1,24 +1,8 @@
-#
-# This file is part of the federated_learning_p2p (p2pfl) distribution
-# (see https://github.com/pguijas/p2pfl).
-# Copyright (c) 2022 Pedro Guijas Bravo.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, version 3.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-# General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-#
 """Train stage."""
 
 from typing import Any
 
+from p2pfl.checkpoints import save_checkpoint
 from p2pfl.communication.commands.message.metrics_command import MetricsCommand
 from p2pfl.communication.commands.message.models_agregated_command import ModelsAggregatedCommand
 from p2pfl.communication.commands.message.models_ready_command import ModelsReadyCommand
@@ -70,6 +54,21 @@ class TrainStage(Stage):
             learner.fit()
             logger.info(state.addr, "🎓 Training done.")
 
+            # Save checkpoint after training (local checkpoint for each node)
+            try:
+                save_checkpoint(
+                    state=state,
+                    learner=learner,
+                    round=state.round,
+                    include_evaluation=False,
+                    checkpoint_type="local",
+                )
+            except Exception as e:
+                logger.warning(
+                    state.addr,
+                    f"Failed to save checkpoint after training: {e}. Continuing with training workflow.",
+                )
+
             check_early_stop(state)
 
             # Aggregate Model
@@ -91,6 +90,21 @@ class TrainStage(Stage):
             # Set aggregated model
             agg_model = aggregator.wait_and_get_aggregation()
             learner.set_model(agg_model)
+
+            # Save checkpoint after aggregation (aggregated checkpoint with all contributors)
+            try:
+                save_checkpoint(
+                    state=state,
+                    learner=learner,
+                    round=state.round,
+                    include_evaluation=False,
+                    checkpoint_type="aggregated",
+                )
+            except Exception as e:
+                logger.warning(
+                    state.addr,
+                    f"Failed to save checkpoint after aggregation: {e}. Continuing with training workflow.",
+                )
 
             # Share that aggregation is done
             communication_protocol.broadcast(communication_protocol.build_msg(ModelsReadyCommand.get_name(), [], round=state.round))

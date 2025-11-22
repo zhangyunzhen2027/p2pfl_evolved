@@ -18,6 +18,7 @@
 
 """Round Finished Stage."""
 
+from p2pfl.checkpoints import save_checkpoint
 from p2pfl.communication.commands.message.metrics_command import MetricsCommand
 from p2pfl.communication.protocols.communication_protocol import CommunicationProtocol
 from p2pfl.learning.aggregators.aggregator import Aggregator
@@ -47,6 +48,23 @@ class RoundFinishedStage(Stage):
         """Execute the stage."""
         if state is None or communication_protocol is None or aggregator is None or learner is None:
             raise Exception("Invalid parameters on RoundFinishedStage.")
+
+        # Save checkpoint before increasing round (saves the current round's final state)
+        current_round = state.round
+        if current_round is not None:
+            try:
+                save_checkpoint(
+                    state=state,
+                    learner=learner,
+                    round=current_round,
+                    include_evaluation=False,
+                    checkpoint_type="round_finished",
+                )
+            except Exception as e:
+                logger.warning(
+                    state.addr,
+                    f"Failed to save checkpoint at round {current_round} completion: {e}. Continuing with round transition.",
+                )
 
         # Set Next Round
         aggregator.clear()
