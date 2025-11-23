@@ -91,7 +91,7 @@ class CheckpointDirectoriesManager:
 
         return checkpoint_dir
 
-    def get_checkpoint_filepath(self, experiment_name: str, node_addr: str, round: int, suffix: str = "pkl") -> str:
+    def get_checkpoint_filepath(self, experiment_name: str, node_addr: str, round: int, checkpoint_type: str = "local", suffix: str = "pkl") -> str:
         """
         Generate the file path for a checkpoint at a specific round.
 
@@ -99,6 +99,7 @@ class CheckpointDirectoriesManager:
             experiment_name: Name of the experiment.
             node_addr: Address of the node.
             round: Round number.
+            checkpoint_type: Type of checkpoint ("local", "aggregated", "round_finished", etc.).
             suffix: File extension (default: "pkl").
 
         Returns:
@@ -106,7 +107,8 @@ class CheckpointDirectoriesManager:
 
         """
         checkpoint_dir = self.get_checkpoint_dir(experiment_name, node_addr)
-        filename = f"checkpoint_round_{round}.{suffix}"
+        safe_type = self._sanitize_filename(checkpoint_type)
+        filename = f"checkpoint_round_{round}_{safe_type}.{suffix}"
         filepath = os.path.join(checkpoint_dir, filename)
         return filepath
 
@@ -154,7 +156,7 @@ class CheckpointDirectoriesManager:
         if not os.path.exists(checkpoint_dir):
             return []
 
-        pattern = re.compile(r"checkpoint_round_(\d+)\.{}$".format(re.escape(suffix)))
+        pattern = re.compile(r"checkpoint_round_(\d+)_[^.]+\.{}$".format(re.escape(suffix)))
 
         checkpoint_files = []
         for filename in os.listdir(checkpoint_dir):

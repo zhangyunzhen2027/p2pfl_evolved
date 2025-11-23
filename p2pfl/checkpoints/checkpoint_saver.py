@@ -55,7 +55,7 @@ def save_checkpoint(
     node_addr = state.addr
     dir_manager.ensure_checkpoint_dir(experiment_name, node_addr)
 
-    filepath = dir_manager.get_checkpoint_filepath(experiment_name, node_addr, round)
+    filepath = dir_manager.get_checkpoint_filepath(experiment_name, node_addr, round, checkpoint_type=checkpoint_type)
 
     try:
         model = learner.get_model()
