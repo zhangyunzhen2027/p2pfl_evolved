@@ -366,7 +366,7 @@ class Node:
 
         if self.state.round is None:
             # Broadcast start Learning
-            logger.info(self.addr, "🚀 Broadcasting start learning...")
+            logger.info(self.addr, "Broadcasting start learning...")
             experiment_name = f"{experiment_name}-{time.time()}"
             self._communication_protocol.broadcast(
                 self._communication_protocol.build_msg(

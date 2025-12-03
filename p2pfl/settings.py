@@ -49,6 +49,10 @@ class General:
     """Period (seconds) to send resource monitor information."""
     CHECKPOINT_DIR: str = "checkpoints"
     """Directory to save checkpoints."""
+    REMOTE_CHECKPOINT_INTERVAL: int = 2
+    """Number of rounds between remote checkpoint backups (k)."""
+    REMOTE_CHECKPOINT_NODES: int = 2
+    """Number of distant nodes to send remote checkpoints to (n)."""
 
 
 @dataclass
@@ -159,8 +163,8 @@ class Settings(metaclass=SingletonMeta):
                 for setting_name, setting_value in category_settings.items():
                     if hasattr(nested_class, setting_name.upper()):  # Assuming settings are uppercase in dataclasses
                         setattr(nested_class, setting_name.upper(), setting_value)
-                        # print(f"    {setting_name}: {setting_value} ✅")
+                        # print(f"    {setting_name}: {setting_value}")
                     else:
-                        print(f"❌ {category_lower}.{setting_name}: {setting_value} not found in settings")
+                        print(f"ERROR: {category_lower}.{setting_name}: {setting_value} not found in settings")
             else:
-                print(f"❌ {category} not found in settings")
+                print(f"ERROR: {category} not found in settings")

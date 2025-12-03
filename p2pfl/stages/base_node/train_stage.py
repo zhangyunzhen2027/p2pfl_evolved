@@ -40,7 +40,22 @@ class TrainStage(Stage):
             check_early_stop(state)
 
             # Set Models To Aggregate
-            aggregator.set_nodes_to_aggregate(state.train_set)
+            # Only set if aggregator is not currently running an aggregation
+            try:
+                if hasattr(aggregator, '_finish_aggregation_event'):
+                    if aggregator._finish_aggregation_event.is_set():
+                        # Aggregator is not running, safe to update
+                        aggregator.set_nodes_to_aggregate(state.train_set)
+                    else:
+                        # Aggregator is running, skip update (will use current train_set)
+                        logger.debug(state.addr, "Aggregator is running, skipping train_set update. Will use current train_set.")
+                else:
+                    # Fallback: try to set anyway
+                    aggregator.set_nodes_to_aggregate(state.train_set)
+            except Exception as e:
+                # If setting fails (e.g., aggregator is running), log and continue
+                # The aggregator will use its current train_set
+                logger.debug(state.addr, f"Could not update aggregator train_set: {e}. Will use current train_set.")
 
             check_early_stop(state)
 
@@ -50,9 +65,9 @@ class TrainStage(Stage):
             check_early_stop(state)
 
             # Train
-            logger.info(state.addr, "🏋️‍♀️ Training...")
+            logger.info(state.addr, "Training...")
             learner.fit()
-            logger.info(state.addr, "🎓 Training done.")
+            logger.info(state.addr, "Training done.")
 
             # Save checkpoint after training (local checkpoint for each node)
             try:
@@ -87,8 +102,23 @@ class TrainStage(Stage):
 
             check_early_stop(state)
 
+            # CRITICAL: Before waiting for aggregation, sync train_set if it has been updated
+            # (e.g., due to node failures). This ensures the aggregator uses the correct train_set
+            # even if nodes failed during the current round.
+            if hasattr(aggregator, '_Aggregator__train_set'):
+                current_agg_train_set = aggregator._Aggregator__train_set
+                if state.train_set != current_agg_train_set:
+                    # Train set has been updated (e.g., nodes failed), but we can't update
+                    # aggregator's train_set if aggregation is running. Instead, we'll update
+                    # it after timeout if needed. For now, log a warning.
+                    logger.warning(
+                        state.addr,
+                        f"Train set mismatch: state.train_set={state.train_set}, aggregator.train_set={current_agg_train_set}. "
+                        f"This may cause aggregation to wait for failed nodes. Will sync after timeout if needed."
+                    )
+
             # Set aggregated model
-            agg_model = aggregator.wait_and_get_aggregation()
+            agg_model = aggregator.wait_and_get_aggregation(state=state)
             learner.set_model(agg_model)
 
             # Save checkpoint after aggregation (aggregated checkpoint with all contributors)
@@ -116,12 +146,12 @@ class TrainStage(Stage):
 
     @staticmethod
     def __evaluate(state: NodeState, learner: Learner, communication_protocol: CommunicationProtocol) -> None:
-        logger.info(state.addr, "🔬 Evaluating...")
+        logger.info(state.addr, "Evaluating...")
         results = learner.evaluate()
-        logger.info(state.addr, f"📈 Evaluated. Results: {results}")
+        logger.info(state.addr, f"Evaluated. Results: {results}")
         # Send metrics
         if len(results) > 0:
-            logger.info(state.addr, "📢 Broadcasting metrics.")
+            logger.info(state.addr, "Broadcasting metrics.")
             flattened_metrics = [str(item) for pair in results.items() for item in pair]
             communication_protocol.broadcast(
                 communication_protocol.build_msg(
@@ -171,7 +201,7 @@ class TrainStage(Stage):
             try:
                 model = aggregator.get_model(TrainStage.__get_aggregated_models(node, state))
             except NoModelsToAggregateError:
-                logger.debug(state.addr, f"❔ No models to aggregate for {node}.")
+                logger.debug(state.addr, f"No models to aggregate for {node}.")
                 return (
                     None,
                     PartialModelCommand.get_name(),

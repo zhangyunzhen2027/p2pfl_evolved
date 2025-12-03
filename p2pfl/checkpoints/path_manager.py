@@ -168,7 +168,14 @@ class CheckpointDirectoriesManager:
 
         return checkpoint_files
 
-    def check_checkpoint_exists(self, experiment_name: str, node_addr: str, round: int, suffix: str = "pkl") -> bool:
+    def check_checkpoint_exists(
+        self,
+        experiment_name: str,
+        node_addr: str,
+        round: int,
+        checkpoint_type: str = "local",
+        suffix: str = "pkl",
+    ) -> bool:
         """
         Check if a checkpoint file exists for a specific round.
 
@@ -176,13 +183,14 @@ class CheckpointDirectoriesManager:
             experiment_name: Name of the experiment.
             node_addr: Address of the node.
             round: Round number.
+            checkpoint_type: Type of checkpoint ("local", "aggregated", "remote", etc.).
             suffix: File extension (default: "pkl").
 
         Returns:
             True if the checkpoint exists, False otherwise.
 
         """
-        filepath = self.get_checkpoint_filepath(experiment_name, node_addr, round, suffix)
+        filepath = self.get_checkpoint_filepath(experiment_name, node_addr, round, checkpoint_type=checkpoint_type, suffix=suffix)
         return os.path.exists(filepath) and os.path.isfile(filepath)
 
     def cleanup_old_checkpoints(
